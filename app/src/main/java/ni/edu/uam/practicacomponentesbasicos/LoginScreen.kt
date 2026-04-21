@@ -24,12 +24,16 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Visibility
@@ -41,11 +45,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -54,14 +67,15 @@ import kotlinx.coroutines.launch
 import ni.edu.uam.practicacomponentesbasicos.ui.theme.PracticaComponentesBasicosTheme
 
 private val ScreenPadding = 24.dp
-private val SectionSpacing = 24.dp
-private val ItemSpacing = 16.dp
+private val SectionSpacing = 14.dp
+private val ItemSpacing = 10.dp
 private val CardShape = RoundedCornerShape(24.dp)
 private val FieldShape = RoundedCornerShape(16.dp)
 
 @Composable
 fun LoginScreen() {
     var isDarkTheme by rememberSaveable { mutableStateOf(false) }
+    var firstName by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var isPasswordVisible by rememberSaveable { mutableStateOf(false) }
@@ -70,9 +84,10 @@ fun LoginScreen() {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    val isFirstNameValid by remember(firstName) { derivedStateOf { firstName.trim().length >= 2 } }
     val isEmailValid by remember(email) { derivedStateOf { isValidEmail(email) } }
     val isPasswordValid by remember(password) { derivedStateOf { password.length >= 6 } }
-    val canLogin = isEmailValid && isPasswordValid
+    val canLogin = isFirstNameValid && isEmailValid && isPasswordValid
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -94,12 +109,15 @@ fun LoginScreen() {
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                     )
                 },
+                firstName = firstName,
+                onFirstNameChange = { firstName = normalizeFirstName(it) },
                 email = email,
                 onEmailChange = { email = it },
                 password = password,
                 onPasswordChange = { password = it },
                 isPasswordVisible = isPasswordVisible,
                 onPasswordVisibilityToggle = { isPasswordVisible = !isPasswordVisible },
+                showFirstNameError = firstName.isNotEmpty() && !isFirstNameValid,
                 showEmailError = email.isNotEmpty() && !isEmailValid,
                 showPasswordError = password.isNotEmpty() && !isPasswordValid,
                 canLogin = canLogin,
@@ -122,6 +140,13 @@ private fun isValidEmail(email: String): Boolean {
     return email.isNotBlank() && Patterns.EMAIL_ADDRESS.matcher(email).matches()
 }
 
+private fun normalizeFirstName(value: String): String {
+    if (value.isEmpty()) return value
+    return value.replaceFirstChar { first ->
+        if (first.isLowerCase()) first.titlecase() else first.toString()
+    }
+}
+
 @Composable
 private fun LoginContent(
     modifier: Modifier = Modifier,
@@ -129,12 +154,15 @@ private fun LoginContent(
     onThemeChange: (Boolean) -> Unit,
     imageUri: Uri?,
     onPickImage: () -> Unit,
+    firstName: String,
+    onFirstNameChange: (String) -> Unit,
     email: String,
     onEmailChange: (String) -> Unit,
     password: String,
     onPasswordChange: (String) -> Unit,
     isPasswordVisible: Boolean,
     onPasswordVisibilityToggle: () -> Unit,
+    showFirstNameError: Boolean,
     showEmailError: Boolean,
     showPasswordError: Boolean,
     canLogin: Boolean,
@@ -172,7 +200,7 @@ private fun LoginContent(
                 visible = true,
                 enter = fadeIn(tween(450)) + slideInVertically(tween(450)) { it / 3 }
             ) {
-                LoginHeader(isDarkTheme = isDarkTheme, onThemeChange = onThemeChange)
+                LoginHeader(firstName = firstName)
             }
 
             AnimatedVisibility(
@@ -189,12 +217,15 @@ private fun LoginContent(
                     slideInVertically(tween(650, delayMillis = 140)) { it / 4 }
             ) {
                 LoginForm(
+                    firstName = firstName,
+                    onFirstNameChange = onFirstNameChange,
                     email = email,
                     onEmailChange = onEmailChange,
                     password = password,
                     onPasswordChange = onPasswordChange,
                     isPasswordVisible = isPasswordVisible,
                     onPasswordVisibilityToggle = onPasswordVisibilityToggle,
+                    showFirstNameError = showFirstNameError,
                     showEmailError = showEmailError,
                     showPasswordError = showPasswordError
                 )
@@ -206,61 +237,69 @@ private fun LoginContent(
                 onLoginClick = onLoginClick
             )
         }
+
+        FilledTonalIconButton(
+            onClick = { onThemeChange(!isDarkTheme) },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 8.dp, end = 8.dp)
+                .size(36.dp)
+        ) {
+            Crossfade(targetState = isDarkTheme, label = "themeIcon") { dark ->
+                Icon(
+                    imageVector = if (dark) Icons.Default.DarkMode else Icons.Default.LightMode,
+                    contentDescription = if (dark) "Tema oscuro activado" else "Tema claro activado"
+                )
+            }
+        }
     }
 }
 
 @Composable
 fun LoginHeader(
-    isDarkTheme: Boolean,
-    onThemeChange: (Boolean) -> Unit
+    firstName: String
 ) {
+    val trimmedName = firstName.trim()
+    val welcomeText = if (trimmedName.isEmpty()) {
+        "Bienvenido"
+    } else {
+        "Bienvenido, $trimmedName"
+    }
+
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = CardShape,
         colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(ScreenPadding),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "Bienvenido",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = "Inicia sesión para continuar",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            ThemeToggle(
-                isDarkTheme = isDarkTheme,
-                onThemeChange = onThemeChange
+            Text(
+                text = "LUMINA APP",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 4.sp,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
             )
-        }
-    }
-}
 
-@Composable
-private fun ThemeToggle(
-    isDarkTheme: Boolean,
-    onThemeChange: (Boolean) -> Unit
-) {
-    FilledTonalIconButton(
-        onClick = { onThemeChange(!isDarkTheme) }
-    ) {
-        Crossfade(targetState = isDarkTheme, label = "themeIcon") { dark ->
-            Icon(
-                imageVector = if (dark) Icons.Default.DarkMode else Icons.Default.LightMode,
-                contentDescription = if (dark) "Tema oscuro activado" else "Tema claro activado"
+            Text(
+                text = welcomeText,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Text(
+                text = "Inicia sesión para continuar",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -291,13 +330,17 @@ fun ProfileImageSelector(
         label = "avatarScale"
     )
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(ItemSpacing)
+    val avatarSize = 108.dp
+
+    Box(
+        modifier = Modifier
+            .size(avatarSize + 8.dp)
+            .padding(4.dp),
+        contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
-                .size(120.dp)
+                .size(avatarSize)
                 .scale(avatarScale)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
@@ -316,23 +359,24 @@ fun ProfileImageSelector(
                     Icon(
                         imageVector = Icons.Default.Person,
                         contentDescription = null,
-                        modifier = Modifier.size(64.dp),
+                        modifier = Modifier.size(56.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
         }
 
-        TextButton(onClick = onPickImage) {
+        FilledTonalIconButton(
+            onClick = onPickImage,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .size(34.dp)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+        ) {
             Icon(
                 imageVector = Icons.Default.PhotoCamera,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = if (imageUri == null) "Agregar Foto" else "Cambiar Foto",
-                style = MaterialTheme.typography.labelLarge
+                contentDescription = if (imageUri == null) "Agregar foto" else "Cambiar foto",
+                modifier = Modifier.size(16.dp)
             )
         }
     }
@@ -340,15 +384,21 @@ fun ProfileImageSelector(
 
 @Composable
 fun LoginForm(
+    firstName: String,
+    onFirstNameChange: (String) -> Unit,
     email: String,
     onEmailChange: (String) -> Unit,
     password: String,
     onPasswordChange: (String) -> Unit,
     isPasswordVisible: Boolean,
     onPasswordVisibilityToggle: () -> Unit,
+    showFirstNameError: Boolean,
     showEmailError: Boolean,
     showPasswordError: Boolean
 ) {
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -363,6 +413,35 @@ fun LoginForm(
             verticalArrangement = Arrangement.spacedBy(ItemSpacing)
         ) {
             OutlinedTextField(
+                value = firstName,
+                onValueChange = onFirstNameChange,
+                label = { Text("Nombre") },
+                placeholder = { Text("Tu nombre") },
+                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = FieldShape,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                ),
+                isError = showFirstNameError,
+                supportingText = {
+                    AnimatedVisibility(
+                        visible = showFirstNameError,
+                        enter = fadeIn(tween(220)),
+                        exit = fadeOut(tween(180))
+                    ) {
+                        Text("Mínimo 2 caracteres")
+                    }
+                }
+            )
+
+            OutlinedTextField(
                 value = email,
                 onValueChange = onEmailChange,
                 label = { Text("Correo Electrónico") },
@@ -371,6 +450,13 @@ fun LoginForm(
                 modifier = Modifier.fillMaxWidth(),
                 shape = FieldShape,
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Email,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                ),
                 isError = showEmailError,
                 supportingText = {
                     AnimatedVisibility(
@@ -387,7 +473,18 @@ fun LoginForm(
                 value = password,
                 onValueChange = onPasswordChange,
                 label = { Text("Contraseña") },
-                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                leadingIcon = {
+                    Crossfade(targetState = isPasswordVisible, label = "passwordLock") { visible ->
+                        Icon(
+                            imageVector = if (visible) Icons.Default.LockOpen else Icons.Default.Lock,
+                            contentDescription = if (visible) {
+                                "Contraseña visible"
+                            } else {
+                                "Contraseña oculta"
+                            }
+                        )
+                    }
+                },
                 visualTransformation = if (isPasswordVisible) {
                     VisualTransformation.None
                 } else {
@@ -412,6 +509,16 @@ fun LoginForm(
                 modifier = Modifier.fillMaxWidth(),
                 shape = FieldShape,
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
+                    }
+                ),
                 isError = showPasswordError,
                 supportingText = {
                     AnimatedVisibility(
@@ -444,6 +551,24 @@ fun LoginFooter(
         label = "buttonBorder"
     )
 
+    var buttonContentWidthPx by remember { mutableIntStateOf(0) }
+    val planeOffsetX = remember { androidx.compose.animation.core.Animatable(0f) }
+
+    LaunchedEffect(isLoading, buttonContentWidthPx) {
+        if (buttonContentWidthPx <= 0) return@LaunchedEffect
+
+        if (isLoading) {
+            val travelDistance = (buttonContentWidthPx - 40).coerceAtLeast(0)
+            planeOffsetX.snapTo(0f)
+            planeOffsetX.animateTo(
+                targetValue = travelDistance.toFloat(),
+                animationSpec = tween(durationMillis = 900, easing = FastOutSlowInEasing)
+            )
+        } else {
+            planeOffsetX.snapTo(0f)
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -459,32 +584,47 @@ fun LoginFooter(
             border = BorderStroke(1.dp, buttonBorderColor),
             elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
         ) {
-            Crossfade(targetState = isLoading, label = "loginButtonState") { loading ->
-                if (loading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onSizeChanged { buttonContentWidthPx = it.width },
+                contentAlignment = Alignment.Center
+            ) {
+                if (isLoading) {
+                    Text(
+                        text = "Validando...",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Enviando",
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .graphicsLayer { translationX = planeOffsetX.value }
+                    )
+                } else {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = null
                         )
-                        Text("Validando...")
+                        Text(
+                            text = "Iniciar Sesión",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
-                } else {
-                    Text(
-                        text = "Iniciar Sesión",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
                 }
             }
         }
 
         AnimatedVisibility(visible = !canLogin && !isLoading, enter = fadeIn(), exit = fadeOut()) {
             Text(
-                text = "Completa un correo válido y una contraseña de 6+ caracteres",
+                text = "Completa nombre, correo válido y contraseña de 6+ caracteres",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
