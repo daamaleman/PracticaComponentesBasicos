@@ -130,6 +130,10 @@ fun LoginScreen() {
                         isLoading = true
                         delay(1200)
                         isLoading = false
+                        firstName = ""
+                        email = ""
+                        password = ""
+                        isPasswordVisible = false
                         snackbarHostState.showSnackbar("Inicio de sesión simulado")
                     }
                 }
@@ -269,10 +273,18 @@ fun LoginHeader(
     }
 
     ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                shape = CardShape
+            ),
         shape = CardShape,
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -428,11 +440,17 @@ fun LoginForm(
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
+                shape = CardShape
+            )
             .animateContentSize(),
         shape = CardShape,
         colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier.padding(ScreenPadding),
@@ -571,10 +589,28 @@ fun LoginFooter(
         targetValue = if (loginEnabled) {
             MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
         } else {
-            MaterialTheme.colorScheme.outlineVariant
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f)
         },
         animationSpec = tween(280),
         label = "buttonBorder"
+    )
+    val buttonContainerColor by animateColorAsState(
+        targetValue = if (loginEnabled) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
+        },
+        animationSpec = tween(280),
+        label = "buttonContainer"
+    )
+    val buttonContentColor by animateColorAsState(
+        targetValue = if (loginEnabled) {
+            MaterialTheme.colorScheme.onPrimary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+        },
+        animationSpec = tween(280),
+        label = "buttonContent"
     )
 
     var buttonContentWidthPx by remember { mutableIntStateOf(0) }
@@ -608,6 +644,12 @@ fun LoginFooter(
                 .height(56.dp),
             shape = FieldShape,
             border = BorderStroke(1.dp, buttonBorderColor),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = buttonContainerColor,
+                contentColor = buttonContentColor,
+                disabledContainerColor = buttonContainerColor,
+                disabledContentColor = buttonContentColor
+            ),
             elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
         ) {
             Box(
