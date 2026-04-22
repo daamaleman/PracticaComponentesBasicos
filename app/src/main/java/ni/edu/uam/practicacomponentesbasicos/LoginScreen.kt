@@ -21,6 +21,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -48,7 +50,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -437,6 +438,43 @@ fun LoginForm(
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val neutralBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)
+
+    val firstNameInteraction = remember { MutableInteractionSource() }
+    val firstNameFocused by firstNameInteraction.collectIsFocusedAsState()
+    val firstNameBorderColor by animateColorAsState(
+        targetValue = when {
+            showFirstNameError -> MaterialTheme.colorScheme.error
+            firstNameFocused -> MaterialTheme.colorScheme.primary
+            else -> neutralBorderColor
+        },
+        animationSpec = tween(220),
+        label = "firstNameBorder"
+    )
+
+    val emailInteraction = remember { MutableInteractionSource() }
+    val emailFocused by emailInteraction.collectIsFocusedAsState()
+    val emailBorderColor by animateColorAsState(
+        targetValue = when {
+            showEmailError -> MaterialTheme.colorScheme.error
+            emailFocused -> MaterialTheme.colorScheme.primary
+            else -> neutralBorderColor
+        },
+        animationSpec = tween(220),
+        label = "emailBorder"
+    )
+
+    val passwordInteraction = remember { MutableInteractionSource() }
+    val passwordFocused by passwordInteraction.collectIsFocusedAsState()
+    val passwordBorderColor by animateColorAsState(
+        targetValue = when {
+            showPasswordError -> MaterialTheme.colorScheme.error
+            passwordFocused -> MaterialTheme.colorScheme.primary
+            else -> neutralBorderColor
+        },
+        animationSpec = tween(220),
+        label = "passwordBorder"
+    )
 
     ElevatedCard(
         modifier = Modifier
@@ -466,6 +504,12 @@ fun LoginForm(
                 modifier = Modifier.fillMaxWidth(),
                 shape = FieldShape,
                 singleLine = true,
+                interactionSource = firstNameInteraction,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = firstNameBorderColor,
+                    unfocusedBorderColor = firstNameBorderColor,
+                    errorBorderColor = MaterialTheme.colorScheme.error
+                ),
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Words,
                     keyboardType = KeyboardType.Text,
@@ -495,6 +539,12 @@ fun LoginForm(
                 modifier = Modifier.fillMaxWidth(),
                 shape = FieldShape,
                 singleLine = true,
+                interactionSource = emailInteraction,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = emailBorderColor,
+                    unfocusedBorderColor = emailBorderColor,
+                    errorBorderColor = MaterialTheme.colorScheme.error
+                ),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Next
@@ -554,6 +604,12 @@ fun LoginForm(
                 modifier = Modifier.fillMaxWidth(),
                 shape = FieldShape,
                 singleLine = true,
+                interactionSource = passwordInteraction,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = passwordBorderColor,
+                    unfocusedBorderColor = passwordBorderColor,
+                    errorBorderColor = MaterialTheme.colorScheme.error
+                ),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Done
@@ -587,6 +643,15 @@ fun LoginFooter(
 ) {
     val loginEnabled = canLogin && !isLoading
     val buttonVisualEnabled = canLogin
+    val buttonContainerColor by animateColorAsState(
+        targetValue = if (buttonVisualEnabled) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
+        },
+        animationSpec = tween(320),
+        label = "buttonContainer"
+    )
     val buttonBorderColor by animateColorAsState(
         targetValue = if (buttonVisualEnabled) {
             MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
@@ -634,71 +699,55 @@ fun LoginFooter(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(ItemSpacing)
     ) {
-        Box(
+        Button(
+            onClick = onLoginClick,
+            enabled = loginEnabled,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
+                .height(56.dp),
+            shape = FieldShape,
+            border = BorderStroke(1.dp, buttonBorderColor),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = buttonContainerColor,
+                contentColor = buttonContentColor,
+                disabledContainerColor = buttonContainerColor,
+                disabledContentColor = buttonContentColor
+            ),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = buttonElevation)
         ) {
-            Crossfade(targetState = buttonVisualEnabled, animationSpec = tween(320), label = "buttonState") { enabledState ->
-                Surface(
-                    modifier = Modifier.matchParentSize(),
-                    shape = FieldShape,
-                    color = if (enabledState) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
-                    }
-                ) {}
-            }
-
-            Button(
-                onClick = onLoginClick,
-                enabled = loginEnabled,
-                modifier = Modifier.matchParentSize(),
-                shape = FieldShape,
-                border = BorderStroke(1.dp, buttonBorderColor),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent,
-                    contentColor = buttonContentColor,
-                    disabledContainerColor = Color.Transparent,
-                    disabledContentColor = buttonContentColor
-                ),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = buttonElevation)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onSizeChanged { buttonContentWidthPx = it.width },
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .onSizeChanged { buttonContentWidthPx = it.width },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isLoading) {
+                if (isLoading) {
+                    Text(
+                        text = "Validando...",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Enviando",
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .graphicsLayer { translationX = planeOffsetX.value }
+                    )
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = null
+                        )
                         Text(
-                            text = "Validando...",
+                            text = "Iniciar Sesión",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold
                         )
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "Enviando",
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .graphicsLayer { translationX = planeOffsetX.value }
-                        )
-                    } else {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Send,
-                                contentDescription = null
-                            )
-                            Text(
-                                text = "Iniciar Sesión",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
                     }
                 }
             }
