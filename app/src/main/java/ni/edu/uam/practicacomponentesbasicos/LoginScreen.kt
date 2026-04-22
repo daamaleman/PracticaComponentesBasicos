@@ -31,14 +31,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.LockOpen
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -395,7 +395,7 @@ fun ProfileImageSelector(
                     )
                 } else {
                     Icon(
-                        imageVector = Icons.Default.Person,
+                        imageVector = Icons.Outlined.Person,
                         contentDescription = null,
                         modifier = Modifier.size(56.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -461,7 +461,7 @@ fun LoginForm(
                 onValueChange = onFirstNameChange,
                 label = { Text("Nombre") },
                 placeholder = { Text("Tu nombre") },
-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Outlined.Person, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = FieldShape,
                 singleLine = true,
@@ -490,7 +490,7 @@ fun LoginForm(
                 onValueChange = onEmailChange,
                 label = { Text("Correo Electrónico") },
                 placeholder = { Text("ejemplo@uam.edu.ni") },
-                leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Outlined.Email, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = FieldShape,
                 singleLine = true,
@@ -520,7 +520,7 @@ fun LoginForm(
                 leadingIcon = {
                     Crossfade(targetState = isPasswordVisible, label = "passwordLock") { visible ->
                         Icon(
-                            imageVector = if (visible) Icons.Default.LockOpen else Icons.Default.Lock,
+                            imageVector = if (visible) Icons.Outlined.LockOpen else Icons.Outlined.Lock,
                             contentDescription = if (visible) {
                                 "Contraseña visible"
                             } else {
@@ -538,9 +538,9 @@ fun LoginForm(
                     IconButton(onClick = onPasswordVisibilityToggle) {
                         Icon(
                             imageVector = if (isPasswordVisible) {
-                                Icons.Default.VisibilityOff
+                                Icons.Outlined.VisibilityOff
                             } else {
-                                Icons.Default.Visibility
+                                Icons.Outlined.Visibility
                             },
                             contentDescription = if (isPasswordVisible) {
                                 "Ocultar contraseña"
