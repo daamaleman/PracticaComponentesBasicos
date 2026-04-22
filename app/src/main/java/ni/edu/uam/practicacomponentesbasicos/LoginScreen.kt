@@ -48,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -585,8 +586,9 @@ fun LoginFooter(
     onLoginClick: () -> Unit
 ) {
     val loginEnabled = canLogin && !isLoading
+    val buttonVisualEnabled = canLogin
     val buttonBorderColor by animateColorAsState(
-        targetValue = if (loginEnabled) {
+        targetValue = if (buttonVisualEnabled) {
             MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
         } else {
             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f)
@@ -594,23 +596,19 @@ fun LoginFooter(
         animationSpec = tween(280),
         label = "buttonBorder"
     )
-    val buttonContainerColor by animateColorAsState(
-        targetValue = if (loginEnabled) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
-        },
-        animationSpec = tween(280),
-        label = "buttonContainer"
-    )
     val buttonContentColor by animateColorAsState(
-        targetValue = if (loginEnabled) {
+        targetValue = if (buttonVisualEnabled) {
             MaterialTheme.colorScheme.onPrimary
         } else {
             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
         },
         animationSpec = tween(280),
         label = "buttonContent"
+    )
+    val buttonElevation by animateDpAsState(
+        targetValue = if (buttonVisualEnabled) 6.dp else 2.dp,
+        animationSpec = tween(320),
+        label = "buttonElevation"
     )
 
     var buttonContentWidthPx by remember { mutableIntStateOf(0) }
@@ -636,55 +634,71 @@ fun LoginFooter(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(ItemSpacing)
     ) {
-        Button(
-            onClick = onLoginClick,
-            enabled = loginEnabled,
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
-            shape = FieldShape,
-            border = BorderStroke(1.dp, buttonBorderColor),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = buttonContainerColor,
-                contentColor = buttonContentColor,
-                disabledContainerColor = buttonContainerColor,
-                disabledContentColor = buttonContentColor
-            ),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                .height(56.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onSizeChanged { buttonContentWidthPx = it.width },
-                contentAlignment = Alignment.Center
+            Crossfade(targetState = buttonVisualEnabled, animationSpec = tween(320), label = "buttonState") { enabledState ->
+                Surface(
+                    modifier = Modifier.matchParentSize(),
+                    shape = FieldShape,
+                    color = if (enabledState) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
+                    }
+                ) {}
+            }
+
+            Button(
+                onClick = onLoginClick,
+                enabled = loginEnabled,
+                modifier = Modifier.matchParentSize(),
+                shape = FieldShape,
+                border = BorderStroke(1.dp, buttonBorderColor),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = buttonContentColor,
+                    disabledContainerColor = Color.Transparent,
+                    disabledContentColor = buttonContentColor
+                ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = buttonElevation)
             ) {
-                if (isLoading) {
-                    Text(
-                        text = "Validando...",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Enviando",
-                        modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .graphicsLayer { translationX = planeOffsetX.value }
-                    )
-                } else {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = null
-                        )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onSizeChanged { buttonContentWidthPx = it.width },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isLoading) {
                         Text(
-                            text = "Iniciar Sesión",
+                            text = "Validando...",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold
                         )
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Enviando",
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .graphicsLayer { translationX = planeOffsetX.value }
+                        )
+                    } else {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = null
+                            )
+                            Text(
+                                text = "Iniciar Sesión",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
             }
